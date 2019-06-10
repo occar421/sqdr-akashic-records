@@ -1,10 +1,10 @@
 mod game;
 
 use crate::game::board3::Board3;
-use crate::game::search::Searcher;
+use crate::game::analysis::Analyzer;
 
 fn main() {
     let board = Board3::new();
-    let searcher = Searcher::new();
-    searcher.search(board);
+    let searcher = Analyzer::new();
+    searcher.analyze(board);
 }
