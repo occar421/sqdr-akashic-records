@@ -32,13 +32,17 @@ impl Analyzer {
                 next_boards.try_borrow_mut().unwrap().push(child_code);
             }
         }
+
+        // TODO: pre-order previous_board: is necessary?
+
+        // TODO: post-order game_result: collecting
     }
 
     fn _search<B>(self: &Self, current_board: &B, piece_index: usize) -> Option<Code> where B: Board {
         let next = current_board.move_at(piece_index);
 
         let previous_code = current_board.encode();
-        return if let Some(board) = next {
+        if let Some(board) = next {
             let code = board.encode();
             {
                 let mut map = self.map.borrow_mut();
@@ -46,19 +50,17 @@ impl Analyzer {
                 if let Some(relation) = map.get_mut(&code) {
                     relation.previous_boards.push(previous_code);
 
-                    if relation.game_result != GameResult::Unknown {
-                        return Option::Some(code);
-                    }
-                } else {
-                    let result = board.get_result();
+                    return Option::Some(code);
+                }
 
-                    let next_boards = Rc::new(RefCell::new(Vec::new()));
+                let result = board.get_result();
 
-                    map.insert(board.encode(), BoardRelation { game_result: result, previous_boards: vec![previous_code], next_boards: next_boards.clone() });
+                let next_boards = Rc::new(RefCell::new(Vec::new()));
 
-                    if result != GameResult::Unknown {
-                        return Option::Some(code);
-                    }
+                map.insert(board.encode(), BoardRelation { game_result: result, previous_boards: vec![previous_code], next_boards: next_boards.clone() });
+
+                if result != GameResult::Unknown {
+                    return Option::Some(code);
                 }
             }
 
@@ -75,9 +77,9 @@ impl Analyzer {
             let relation = map.get_mut(&code).unwrap();
             relation.next_boards.try_borrow_mut().unwrap().extend_from_slice(&codes);
 
-            Option::Some(code)
+            return Option::Some(code);
         } else {
-            Option::None
+            return Option::None;
         };
     }
 }
