@@ -35,7 +35,7 @@ impl Searcher {
     }
 
     fn search_recur<B>(self: &Self, current_board: &B, piece_index: usize) -> Option<Code> where B: Board {
-//        println!("{:?}", current_board);
+        println!("{:?}", current_board);
 
         let next = current_board.move_at(piece_index);
 

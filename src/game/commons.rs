@@ -1,4 +1,6 @@
-pub trait Board where Self: Sized + Clone {
+use std::fmt::Debug;
+
+pub trait Board where Self: Sized + Clone + Debug {
     fn get_board_size() -> usize;
 
     fn move_at(self: &Self, piece_index: usize) -> Option<Self>;
