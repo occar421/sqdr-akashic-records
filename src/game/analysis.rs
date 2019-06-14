@@ -1,22 +1,24 @@
 use std::cell::RefCell;
 use std::rc::Rc;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use crate::game::commons::{GameResult, Code, Board, Turn};
 
 #[derive(Debug)]
 pub struct AnalysisTree {
-    pub game_result: GameResult,
-    pub next_boards: Rc<RefCell<Vec<Code>>>,
+    game_result: GameResult,
+    next_boards: Rc<RefCell<Vec<Code>>>,
 }
 
 pub struct Analyzer {
-    map: RefCell<HashMap<Code, AnalysisTree>>
+    map: RefCell<HashMap<Code, AnalysisTree>>,
+    checked_set: RefCell<HashSet<Code>>,
 }
 
 impl Analyzer {
     pub fn new() -> Analyzer {
         Analyzer {
             map: RefCell::new(HashMap::new()),
+            checked_set: RefCell::new(HashSet::new()),
         }
     }
 
@@ -98,7 +100,14 @@ impl Analyzer {
     fn solve<B>(self: &Self, board_code: &Code) -> GameResult where B: Board {
         let mut next_boards;
 
-        // check if already memoized
+        {
+            if self.checked_set.borrow().contains(board_code) {
+                // cyclic part
+                return GameResult::Drawn;
+            }
+        }
+
+        // check if already memoized in map
         {
             let map = self.map.borrow();
             let relation = map.get(board_code);
@@ -114,32 +123,31 @@ impl Analyzer {
             }
         };
 
-//        println!("{}", board_code.0);
+        {
+            self.checked_set.borrow_mut().insert(board_code.clone());
+        }
 
         // calc
         let mut results = next_boards.iter().map(|b| self.solve::<B>(b));
         let current_turn = board_code.get_turn::<B>();
 
-        let red_wins = if current_turn == Turn::Red {
-            results.any(|r| r == GameResult::RedWins)
+        let result = if current_turn == Turn::Red {
+            if results.any(|r| r == GameResult::RedWins) {
+                GameResult::RedWins
+            } else if results.any(|r| r == GameResult::Drawn) {
+                GameResult::Drawn
+            } else {
+                GameResult::YellowWins
+            }
         } else {
-            results.all(|r| r == GameResult::YellowWins)
+            if results.any(|r| r == GameResult::YellowWins) {
+                GameResult::YellowWins
+            } else if results.any(|r| r == GameResult::Drawn) {
+                GameResult::Drawn
+            } else {
+                GameResult::RedWins
+            }
         };
-
-//        // if some record is invalid or unknown, 2-value is not proper.
-//        let yellow_wins = if current_turn == Turn::Red {
-//            results.all(|r| r == GameResult::YellowWins)
-//        } else {
-//            results.any(|r| r == GameResult::RedWins)
-//        };
-//
-//        let result = match (red_wins, yellow_wins) {
-//            (false, false) => GameResult::Unknown,
-//            (true, false) => GameResult::RedWins,
-//            (false, true) => GameResult::YellowWins,
-//            (true, true) => GameResult::Invalid
-//        };
-        let result = if red_wins { GameResult::RedWins } else { GameResult::YellowWins };
 
         // memoization
         self.map.borrow_mut().get_mut(board_code).unwrap().game_result = result; // pick already inserted value

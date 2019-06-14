@@ -35,6 +35,7 @@ pub enum GameResult {
     Unknown,
     RedWins,
     YellowWins,
+    Drawn,
     Invalid,
 }
 
