@@ -37,7 +37,7 @@ impl Analyzer {
         for i in 0..B::get_board_size() {
             let child_code = self._search(current_board, i);
             if let Some(child_code) = child_code {
-                next_boards.try_borrow_mut().unwrap().push(child_code);
+                next_boards.borrow_mut().push(child_code);
             }
         }
     }
@@ -76,8 +76,8 @@ impl Analyzer {
             }
 
             let mut map = self.map.borrow_mut();
-            let relation = map.get_mut(&code).unwrap();
-            relation.next_boards.try_borrow_mut().unwrap().extend_from_slice(&codes);
+            let relation = map.get_mut(&code).unwrap(); // pick already inserted value
+            relation.next_boards.borrow_mut().extend_from_slice(&codes);
 
             return Option::Some(code);
         } else {
@@ -128,7 +128,7 @@ impl Analyzer {
         };
 
         // memoization
-        self.map.borrow_mut().get_mut(board_code).unwrap().game_result = result;
+        self.map.borrow_mut().get_mut(board_code).unwrap().game_result = result; // pick already inserted value
 
         return result;
     }

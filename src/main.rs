@@ -11,7 +11,6 @@ fn main() {
     println!("3x3 Red first -> {}", result);
 
     let board = Board3::new(Turn::Yellow);
-    let searcher = Analyzer::new();
-    let result = searcher.analyze(&board);
+    let result = searcher.analyze(&board); // reuse "cache"
     println!("3x3 Yellow first -> {}", result);
 }
