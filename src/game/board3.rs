@@ -53,11 +53,11 @@ impl Board for Board3 {
 }
 
 impl Board3 {
-    pub fn new() -> Self {
+    pub fn new(the_first_move: Turn) -> Self {
         Board3 {
             red_pieces: [Position::Outward(0); BOARD_SIZE],
             yellow_pieces: [Position::Outward(0); BOARD_SIZE],
-            turn: Turn::Red,
+            turn: the_first_move,
         }
     }
 

@@ -20,22 +20,26 @@ impl Analyzer {
         }
     }
 
-    pub fn analyze<B>(self: &Self, board: B) where B: Board {
-        let code = board.encode();
+    pub fn analyze<B>(self: &Self, board: &B) where B: Board {
+        self.search(board);
+
+        // TODO: pre-order previous_board: is necessary?
+
+        // TODO: post-order game_result: collecting
+    }
+
+    fn search<B>(self: &Self, current_board: &B) where B: Board {
+        let code = current_board.encode();
         let next_boards = Rc::new(RefCell::new(Vec::new()));
 
         self.map.borrow_mut().insert(code.clone(), BoardRelation { game_result: GameResult::Unknown, previous_boards: Vec::new(), next_boards: next_boards.clone() });
 
         for i in 0..B::get_board_size() {
-            let child_code = self._search(&board, i);
+            let child_code = self._search(current_board, i);
             if let Some(child_code) = child_code {
                 next_boards.try_borrow_mut().unwrap().push(child_code);
             }
         }
-
-        // TODO: pre-order previous_board: is necessary?
-
-        // TODO: post-order game_result: collecting
     }
 
     fn _search<B>(self: &Self, current_board: &B, piece_index: usize) -> Option<Code> where B: Board {
