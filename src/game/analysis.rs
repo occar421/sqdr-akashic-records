@@ -21,11 +21,21 @@ impl Analyzer {
     }
 
     pub fn analyze<B>(self: &Self, board: &B) -> GameResult where B: Board {
+        println!("Start searching leaves.");
+
         let first_board_code = board.encode();
 
         self.search(board);
 
-        self.solve::<B>(&first_board_code)
+        println!("Finish searching leaves.");
+
+        println!("Start solving.");
+
+        let result = self.solve::<B>(&first_board_code);
+
+        println!("Finish solving.");
+
+        return result;
     }
 
     fn search<B>(self: &Self, current_board: &B) where B: Board {
@@ -104,28 +114,32 @@ impl Analyzer {
             }
         };
 
+//        println!("{}", board_code.0);
+
         // calc
         let mut results = next_boards.iter().map(|b| self.solve::<B>(b));
         let current_turn = board_code.get_turn::<B>();
 
-        // if some record is invalid or unknown, 2-value is not proper.
         let red_wins = if current_turn == Turn::Red {
             results.any(|r| r == GameResult::RedWins)
         } else {
             results.all(|r| r == GameResult::YellowWins)
         };
-        let yellow_wins = if current_turn == Turn::Red {
-            results.all(|r| r == GameResult::YellowWins)
-        } else {
-            results.any(|r| r == GameResult::RedWins)
-        };
 
-        let result = match (red_wins, yellow_wins) {
-            (false, false) => GameResult::Unknown,
-            (true, false) => GameResult::RedWins,
-            (false, true) => GameResult::YellowWins,
-            (true, true) => GameResult::Invalid
-        };
+//        // if some record is invalid or unknown, 2-value is not proper.
+//        let yellow_wins = if current_turn == Turn::Red {
+//            results.all(|r| r == GameResult::YellowWins)
+//        } else {
+//            results.any(|r| r == GameResult::RedWins)
+//        };
+//
+//        let result = match (red_wins, yellow_wins) {
+//            (false, false) => GameResult::Unknown,
+//            (true, false) => GameResult::RedWins,
+//            (false, true) => GameResult::YellowWins,
+//            (true, true) => GameResult::Invalid
+//        };
+        let result = if red_wins { GameResult::RedWins } else { GameResult::YellowWins };
 
         // memoization
         self.map.borrow_mut().get_mut(board_code).unwrap().game_result = result; // pick already inserted value

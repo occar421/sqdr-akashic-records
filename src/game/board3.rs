@@ -37,11 +37,65 @@ impl Board for Board3 {
         pieces_turn[piece_index] = match pieces_turn[piece_index] {
             Position::Outward(n) => {
                 let base_moves = speed_outward[piece_index];
-                if n + base_moves >= BOARD_SIZE as u8 { Position::Homeward(BOARD_SIZE as u8 + 1) } else { Position::Outward(n + base_moves) }
+                let mut jumped_previously = false;
+
+                let mut n_moves = 0;
+                let mut path = n;
+                while n_moves < base_moves || jumped_previously {
+                    n_moves += 1;
+
+                    if path >= BOARD_SIZE as u8 {
+                        // reaches turning point
+                        break;
+                    }
+
+                    let target_piece_index = path as usize;
+                    let target_position = pieces_opposite[target_piece_index];
+                    match target_position {
+                        Position::Outward(m) if m == piece_index as u8 + 1 => {
+                            pieces_opposite[target_piece_index] = Position::Outward(0);
+                            jumped_previously = true;
+                        }
+                        Position::Homeward(m) if m == (BOARD_SIZE - piece_index) as u8 => {
+                            pieces_opposite[target_piece_index] = Position::Homeward(0);
+                            jumped_previously = true;
+                        }
+                        _ => { if jumped_previously { break; } }
+                    }
+                    path += 1;
+                }
+                if n + n_moves > BOARD_SIZE as u8 { Position::Homeward(0) } else { Position::Outward(n + n_moves) }
             }
             Position::Homeward(n) => {
                 let base_moves = speed_homeward[piece_index];
-                if n - base_moves <= 0 { Position::Finished } else { Position::Homeward(n - base_moves) }
+                let mut jumped_previously = false;
+
+                let mut n_moves = 0;
+                let mut path = n;
+                while n_moves < base_moves || jumped_previously {
+                    n_moves += 1;
+
+                    if path >= BOARD_SIZE as u8 {
+                        // reaches finish point
+                        break;
+                    }
+
+                    let target_piece_index = BOARD_SIZE - path as usize - 1;
+                    let target_position = pieces_opposite[target_piece_index];
+                    match target_position {
+                        Position::Outward(m) if m == piece_index as u8 + 1 => {
+                            pieces_opposite[target_piece_index] = Position::Outward(0);
+                            jumped_previously = true;
+                        }
+                        Position::Homeward(m) if m == (BOARD_SIZE - piece_index) as u8 => {
+                            pieces_opposite[target_piece_index] = Position::Homeward(0);
+                            jumped_previously = true;
+                        }
+                        _ => { if jumped_previously { break; } }
+                    }
+                    path += 1;
+                }
+                if n + base_moves > BOARD_SIZE as u8 { Position::Finished } else { Position::Homeward(n + n_moves) }
             }
             Position::Finished => return Option::None
         };
@@ -86,6 +140,250 @@ impl Board3 {
             red_pieces: [Position::Outward(0); BOARD_SIZE],
             yellow_pieces: [Position::Outward(0); BOARD_SIZE],
             turn: the_first_move,
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    //           .   :   .
+    //     +---+---+---+---+---+
+    //     |===| h0| h0| h0|===|
+    //     +---+---+---+---+---+
+    // . 2 |o0f|   |   |   | h0| :
+    //     +---+---+---+---+---+
+    // : 1 |o0f|   |   |   | h0| .
+    //     +---+---+---+---+---+
+    // . 0 |o0f|   |   |   | h0| :
+    //     +---+---+---+---+---+
+    //     |===|o0f|o0f|o0f|===|
+    //     +---+---+---+---+---+
+    //           0   1   2
+    //           :   .   :
+
+    mod move_at {
+        use super::super::Board3;
+        use crate::game::commons::{Turn, Board, Position};
+
+        #[test]
+        fn move_r0o0() {
+            let board = Board3::new(Turn::Red);
+
+            let board = board.move_at(0).unwrap();
+
+            assert_eq!(board.turn, Turn::Yellow);
+            assert_eq!(board.red_pieces[0], Position::Outward(2));
+            assert_eq!(board.red_pieces[1], Position::Outward(0));
+            assert_eq!(board.red_pieces[2], Position::Outward(0));
+            assert_eq!(board.yellow_pieces[0], Position::Outward(0));
+            assert_eq!(board.yellow_pieces[1], Position::Outward(0));
+            assert_eq!(board.yellow_pieces[2], Position::Outward(0));
+        }
+
+        #[test]
+        fn move_y0o0() {
+            let board = Board3::new(Turn::Yellow);
+
+            let board = board.move_at(0).unwrap();
+
+            assert_eq!(board.turn, Turn::Red);
+            assert_eq!(board.red_pieces[0], Position::Outward(0));
+            assert_eq!(board.red_pieces[1], Position::Outward(0));
+            assert_eq!(board.red_pieces[2], Position::Outward(0));
+            assert_eq!(board.yellow_pieces[0], Position::Outward(1));
+            assert_eq!(board.yellow_pieces[1], Position::Outward(0));
+            assert_eq!(board.yellow_pieces[2], Position::Outward(0));
+        }
+
+        #[test]
+        fn move_r0o2() {
+            let mut board = Board3::new(Turn::Red);
+
+            board.red_pieces[0] = Position::Outward(2);
+
+            let board = board.move_at(0).unwrap();
+
+            assert_eq!(board.turn, Turn::Yellow);
+            assert_eq!(board.red_pieces[0], Position::Homeward(0));
+            assert_eq!(board.red_pieces[1], Position::Outward(0));
+            assert_eq!(board.red_pieces[2], Position::Outward(0));
+            assert_eq!(board.yellow_pieces[0], Position::Outward(0));
+            assert_eq!(board.yellow_pieces[1], Position::Outward(0));
+            assert_eq!(board.yellow_pieces[2], Position::Outward(0));
+        }
+
+        #[test]
+        fn move_r0o3() {
+            let mut board = Board3::new(Turn::Red);
+
+            board.red_pieces[0] = Position::Outward(3);
+
+            let board = board.move_at(0).unwrap();
+
+            assert_eq!(board.turn, Turn::Yellow);
+            assert_eq!(board.red_pieces[0], Position::Homeward(0));
+            assert_eq!(board.red_pieces[1], Position::Outward(0));
+            assert_eq!(board.red_pieces[2], Position::Outward(0));
+            assert_eq!(board.yellow_pieces[0], Position::Outward(0));
+            assert_eq!(board.yellow_pieces[1], Position::Outward(0));
+            assert_eq!(board.yellow_pieces[2], Position::Outward(0));
+        }
+
+        #[test]
+        fn move_r1o3() {
+            let mut board = Board3::new(Turn::Red);
+
+            board.red_pieces[1] = Position::Outward(3);
+
+            let board = board.move_at(1).unwrap();
+
+            assert_eq!(board.turn, Turn::Yellow);
+            assert_eq!(board.red_pieces[0], Position::Outward(0));
+            assert_eq!(board.red_pieces[1], Position::Homeward(0));
+            assert_eq!(board.red_pieces[2], Position::Outward(0));
+            assert_eq!(board.yellow_pieces[0], Position::Outward(0));
+            assert_eq!(board.yellow_pieces[1], Position::Outward(0));
+            assert_eq!(board.yellow_pieces[2], Position::Outward(0));
+        }
+
+        #[test]
+        fn move_r0o0_then_jump_y0o1() {
+            let mut board = Board3::new(Turn::Red);
+
+            board.yellow_pieces[0] = Position::Outward(1);
+
+            let board = board.move_at(0).unwrap();
+
+            assert_eq!(board.turn, Turn::Yellow);
+            assert_eq!(board.red_pieces[0], Position::Outward(2));
+            assert_eq!(board.red_pieces[1], Position::Outward(0));
+            assert_eq!(board.red_pieces[2], Position::Outward(0));
+            assert_eq!(board.yellow_pieces[0], Position::Outward(0));
+            assert_eq!(board.yellow_pieces[1], Position::Outward(0));
+            assert_eq!(board.yellow_pieces[2], Position::Outward(0));
+        }
+
+        #[test]
+        fn move_r0o0_then_jump_y1o1() {
+            let mut board = Board3::new(Turn::Red);
+
+            board.yellow_pieces[1] = Position::Outward(1);
+
+            let board = board.move_at(0).unwrap();
+
+            assert_eq!(board.turn, Turn::Yellow);
+            assert_eq!(board.red_pieces[0], Position::Outward(3));
+            assert_eq!(board.red_pieces[1], Position::Outward(0));
+            assert_eq!(board.red_pieces[2], Position::Outward(0));
+            assert_eq!(board.yellow_pieces[0], Position::Outward(0));
+            assert_eq!(board.yellow_pieces[1], Position::Outward(0));
+            assert_eq!(board.yellow_pieces[2], Position::Outward(0));
+        }
+
+        #[test]
+        fn move_r1o0_then_jump_y0o2_and_y1o2() {
+            let mut board = Board3::new(Turn::Red);
+
+            board.yellow_pieces[0] = Position::Outward(2);
+            board.yellow_pieces[1] = Position::Outward(2);
+
+            let board = board.move_at(1).unwrap();
+
+            assert_eq!(board.turn, Turn::Yellow);
+            assert_eq!(board.red_pieces[0], Position::Outward(0));
+            assert_eq!(board.red_pieces[1], Position::Outward(3));
+            assert_eq!(board.red_pieces[2], Position::Outward(0));
+            assert_eq!(board.yellow_pieces[0], Position::Outward(0));
+            assert_eq!(board.yellow_pieces[1], Position::Outward(0));
+            assert_eq!(board.yellow_pieces[2], Position::Outward(0));
+        }
+
+        #[test]
+        fn move_r1o0_then_jump_y0o2_but_not_y2o2() {
+            let mut board = Board3::new(Turn::Red);
+
+            board.yellow_pieces[0] = Position::Outward(2);
+            board.yellow_pieces[2] = Position::Outward(2);
+
+            let board = board.move_at(1).unwrap();
+
+            assert_eq!(board.turn, Turn::Yellow);
+            assert_eq!(board.red_pieces[0], Position::Outward(0));
+            assert_eq!(board.red_pieces[1], Position::Outward(2));
+            assert_eq!(board.red_pieces[2], Position::Outward(0));
+            assert_eq!(board.yellow_pieces[0], Position::Outward(0));
+            assert_eq!(board.yellow_pieces[1], Position::Outward(0));
+            assert_eq!(board.yellow_pieces[2], Position::Outward(2));
+        }
+
+        #[test]
+        fn move_r1o0_then_jump_y0o2_and_y1o2_and_y2o2() {
+            let mut board = Board3::new(Turn::Red);
+
+            board.yellow_pieces[0] = Position::Outward(2);
+            board.yellow_pieces[1] = Position::Outward(2);
+            board.yellow_pieces[2] = Position::Outward(2);
+
+            let board = board.move_at(1).unwrap();
+
+            assert_eq!(board.turn, Turn::Yellow);
+            assert_eq!(board.red_pieces[0], Position::Outward(0));
+            assert_eq!(board.red_pieces[1], Position::Homeward(0));
+            assert_eq!(board.red_pieces[2], Position::Outward(0));
+            assert_eq!(board.yellow_pieces[0], Position::Outward(0));
+            assert_eq!(board.yellow_pieces[1], Position::Outward(0));
+            assert_eq!(board.yellow_pieces[2], Position::Outward(0));
+        }
+
+        #[test]
+        fn move_r0o0_then_jump_y1h3() {
+            let mut board = Board3::new(Turn::Red);
+
+            board.yellow_pieces[1] = Position::Homeward(3);
+
+            let board = board.move_at(0).unwrap();
+
+            assert_eq!(board.turn, Turn::Yellow);
+            assert_eq!(board.red_pieces[0], Position::Outward(3));
+            assert_eq!(board.red_pieces[1], Position::Outward(0));
+            assert_eq!(board.red_pieces[2], Position::Outward(0));
+            assert_eq!(board.yellow_pieces[0], Position::Outward(0));
+            assert_eq!(board.yellow_pieces[1], Position::Homeward(0));
+            assert_eq!(board.yellow_pieces[2], Position::Outward(0));
+        }
+
+        #[test]
+        fn move_r0h0() {
+            let mut board = Board3::new(Turn::Red);
+
+            board.red_pieces[0] = Position::Homeward(0);
+
+            let board = board.move_at(0).unwrap();
+
+            assert_eq!(board.turn, Turn::Yellow);
+            assert_eq!(board.red_pieces[0], Position::Homeward(1));
+            assert_eq!(board.red_pieces[1], Position::Outward(0));
+            assert_eq!(board.red_pieces[2], Position::Outward(0));
+            assert_eq!(board.yellow_pieces[0], Position::Outward(0));
+            assert_eq!(board.yellow_pieces[1], Position::Outward(0));
+            assert_eq!(board.yellow_pieces[2], Position::Outward(0));
+        }
+
+        #[test]
+        fn move_r0h3() {
+            let mut board = Board3::new(Turn::Red);
+
+            board.red_pieces[0] = Position::Homeward(3);
+
+            let board = board.move_at(0).unwrap();
+
+            assert_eq!(board.turn, Turn::Yellow);
+            assert_eq!(board.red_pieces[0], Position::Finished);
+            assert_eq!(board.red_pieces[1], Position::Outward(0));
+            assert_eq!(board.red_pieces[2], Position::Outward(0));
+            assert_eq!(board.yellow_pieces[0], Position::Outward(0));
+            assert_eq!(board.yellow_pieces[1], Position::Outward(0));
+            assert_eq!(board.yellow_pieces[2], Position::Outward(0));
         }
     }
 }

@@ -12,7 +12,7 @@ pub trait Board where Self: Sized + Clone + Debug {
     fn get_result(self: &Self) -> GameResult;
 }
 
-// battle field, Outward(1..BOARD_SIZE) && Homeward(BOARD_SIZE..1)
+// battle field, Outward(1..BOARD_SIZE) && Homeward(1..BOARD_SIZE)
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum Position {
     Outward(u8),
