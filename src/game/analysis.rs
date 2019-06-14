@@ -4,13 +4,13 @@ use std::collections::HashMap;
 use crate::game::commons::{GameResult, Code, Board, Turn};
 
 #[derive(Debug)]
-pub struct BoardRelation {
+pub struct AnalysisTree {
     pub game_result: GameResult,
     pub next_boards: Rc<RefCell<Vec<Code>>>,
 }
 
 pub struct Analyzer {
-    map: RefCell<HashMap<Code, BoardRelation>>
+    map: RefCell<HashMap<Code, AnalysisTree>>
 }
 
 impl Analyzer {
@@ -32,7 +32,7 @@ impl Analyzer {
         let code = current_board.encode();
         let next_boards = Rc::new(RefCell::new(Vec::new()));
 
-        self.map.borrow_mut().insert(code.clone(), BoardRelation { game_result: GameResult::Unknown, next_boards: next_boards.clone() });
+        self.map.borrow_mut().insert(code.clone(), AnalysisTree { game_result: GameResult::Unknown, next_boards: next_boards.clone() });
 
         for i in 0..B::get_board_size() {
             let child_code = self._search(current_board, i);
@@ -58,7 +58,7 @@ impl Analyzer {
 
                 let next_boards = Rc::new(RefCell::new(Vec::new()));
 
-                map.insert(board.encode(), BoardRelation { game_result: result, next_boards: next_boards.clone() });
+                map.insert(board.encode(), AnalysisTree { game_result: result, next_boards: next_boards.clone() });
             }
 
             if result != GameResult::Unknown {
