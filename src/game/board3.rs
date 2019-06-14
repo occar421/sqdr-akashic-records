@@ -20,11 +20,35 @@ impl Board for Board3 {
     }
 
     fn move_at(self: &Self, piece_index: usize) -> Option<Self> {
-        if self.turn == Turn::Red {
-            self.move_red_at(piece_index)
+        let mut cloned_self = self.clone();
+
+        let (
+            pieces_turn,
+            pieces_opposite,
+            speed_outward,
+            speed_homeward,
+            next_turn
+        ) = if self.turn == Turn::Red {
+            (&mut cloned_self.red_pieces, &mut cloned_self.yellow_pieces, &RED_SPEEDS_OUTWARD, &RED_SPEEDS_HOMEWARD, Turn::Yellow)
         } else {
-            self.move_yellow_at(piece_index)
-        }
+            (&mut cloned_self.yellow_pieces, &mut cloned_self.red_pieces, &YELLOW_SPEEDS_OUTWARD, &YELLOW_SPEEDS_HOMEWARD, Turn::Red)
+        };
+
+        pieces_turn[piece_index] = match pieces_turn[piece_index] {
+            Position::Outward(n) => {
+                let base_moves = speed_outward[piece_index];
+                if n + base_moves >= BOARD_SIZE as u8 { Position::Homeward(BOARD_SIZE as u8 + 1) } else { Position::Outward(n + base_moves) }
+            }
+            Position::Homeward(n) => {
+                let base_moves = speed_homeward[piece_index];
+                if n - base_moves <= 0 { Position::Finished } else { Position::Homeward(n - base_moves) }
+            }
+            Position::Finished => return Option::None
+        };
+
+        cloned_self.turn = next_turn;
+
+        Option::Some(cloned_self)
     }
 
     fn encode(self: &Self) -> Code {
@@ -63,45 +87,5 @@ impl Board3 {
             yellow_pieces: [Position::Outward(0); BOARD_SIZE],
             turn: the_first_move,
         }
-    }
-
-    fn move_red_at(self: &Self, piece_index: usize) -> Option<Self> {
-        let mut cloned = self.clone();
-
-        cloned.red_pieces[piece_index] = match cloned.red_pieces[piece_index] {
-            Position::Outward(n) => {
-                let base_moves = RED_SPEEDS_OUTWARD[piece_index];
-                if n + base_moves >= BOARD_SIZE as u8 { Position::Homeward(BOARD_SIZE as u8 + 1) } else { Position::Outward(n + base_moves) }
-            }
-            Position::Homeward(n) => {
-                let base_moves = RED_SPEEDS_HOMEWARD[piece_index];
-                if n - base_moves <= 0 { Position::Finished } else { Position::Homeward(n - base_moves) }
-            }
-            Position::Finished => return Option::None
-        };
-
-        cloned.turn = Turn::Yellow;
-
-        Option::Some(cloned)
-    }
-
-    fn move_yellow_at(self: &Self, piece_index: usize) -> Option<Self> {
-        let mut cloned = self.clone();
-
-        cloned.yellow_pieces[piece_index] = match cloned.yellow_pieces[piece_index] {
-            Position::Outward(n) => {
-                let base_moves = YELLOW_SPEEDS_OUTWARD[piece_index];
-                if n + base_moves >= BOARD_SIZE as u8 { Position::Homeward(BOARD_SIZE as u8 + 1) } else { Position::Outward(n + base_moves) }
-            }
-            Position::Homeward(n) => {
-                let base_moves = YELLOW_SPEEDS_HOMEWARD[piece_index];
-                if n - base_moves <= 0 { Position::Finished } else { Position::Homeward(n - base_moves) }
-            }
-            Position::Finished => return Option::None
-        };
-
-        cloned.turn = Turn::Red;
-
-        Option::Some(cloned)
     }
 }
