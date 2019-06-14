@@ -39,6 +39,10 @@ impl Board for Board3 {
         ).to_string())
     }
 
+    fn get_turn_from_code(code: &Code) -> Turn {
+        if code.0.ends_with("r") { Turn::Red } else { Turn::Yellow }
+    }
+
     fn get_result(self: &Self) -> GameResult {
         let is_red_finished = self.red_pieces.iter().filter(|&p| *p == Position::Finished).count() >= BOARD_SIZE - 1;
         let is_yellow_finished = self.yellow_pieces.iter().filter(|&p| *p == Position::Finished).count() >= BOARD_SIZE - 1;

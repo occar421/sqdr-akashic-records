@@ -7,6 +7,8 @@ pub trait Board where Self: Sized + Clone + Debug {
 
     fn encode(self: &Self) -> Code;
 
+    fn get_turn_from_code(code: &Code) -> Turn;
+
     fn get_result(self: &Self) -> GameResult;
 }
 
@@ -23,7 +25,7 @@ impl std::fmt::Display for Position {
         match self {
             Position::Outward(n) => write!(f, "o{}", n),
             Position::Homeward(n) => write!(f, "h{}", n),
-            Position::Finished => write!(f, "f"),
+            Position::Finished => write!(f, "f_"),
         }
     }
 }
@@ -36,6 +38,12 @@ pub enum GameResult {
     Invalid,
 }
 
+impl std::fmt::Display for GameResult {
+    fn fmt(self: &Self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "{:?}", self) // cheat
+    }
+}
+
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum Turn {
     Red,
@@ -44,3 +52,9 @@ pub enum Turn {
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub struct Code(pub String);
+
+impl Code {
+    pub fn get_turn<B>(self: &Self) -> Turn where B: Board {
+        B::get_turn_from_code(self)
+    }
+}
