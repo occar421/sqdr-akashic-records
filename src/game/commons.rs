@@ -10,6 +10,8 @@ pub trait Board where Self: Sized + Clone + Debug {
     fn get_turn_from_code(code: &Code) -> Turn;
 
     fn get_result(self: &Self) -> GameResult;
+
+    fn draw_ascii_art(self: &Self) -> String;
 }
 
 // battle field, Outward(1..BOARD_SIZE) && Homeward(1..BOARD_SIZE)

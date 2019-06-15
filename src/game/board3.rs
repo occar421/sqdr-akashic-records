@@ -132,6 +132,96 @@ impl Board for Board3 {
             (true, true) => GameResult::Invalid
         }
     }
+
+    //               .   :   .  next-> Yellow
+    //         +---+---+---+---+---+
+    //         |===| v |   | v |===|
+    //         +---+---+---+---+---+
+    //     . 2 | > |   |   |   |   | :
+    //         +---+---+---+---+---+
+    //     : 1 |   |   |   |   | < | .
+    //         +---+---+---+---+---+
+    //     . 0 | > |   |   |   |   | :
+    //         +---+---+---+---+---+
+    //         |===|   | ^ |   |===|
+    //         +---+---+---+---+---+
+    // Yellow /      0   1   2
+    //       / Red   :   .   :
+    fn draw_ascii_art(self: &Self) -> String {
+        const EMPTY: &str = "   ";
+        const UP: &str = " ^ ";
+        const RIGHT: &str = " > ";
+        const DOWN: &str = " v ";
+        const LEFT: &str = " < ";
+
+        let r0t = if self.red_pieces[0] == Position::Homeward(0) { DOWN } else { EMPTY };
+        let r1t = if self.red_pieces[1] == Position::Homeward(0) { DOWN } else { EMPTY };
+        let r2t = if self.red_pieces[2] == Position::Homeward(0) { DOWN } else { EMPTY };
+
+        let y0s = match self.yellow_pieces[0] {
+            Position::Outward(0) => RIGHT,
+            Position::Finished => LEFT,
+            _ => EMPTY,
+        };
+        let y1s = match self.yellow_pieces[1] {
+            Position::Outward(0) => RIGHT,
+            Position::Finished => LEFT,
+            _ => EMPTY,
+        };
+        let y2s = match self.yellow_pieces[2] {
+            Position::Outward(0) => RIGHT,
+            Position::Finished => LEFT,
+            _ => EMPTY,
+        };
+
+        let r0s = match self.red_pieces[0] {
+            Position::Outward(0) => UP,
+            Position::Finished => DOWN,
+            _ => EMPTY
+        };
+        let r1s = match self.red_pieces[1] {
+            Position::Outward(0) => UP,
+            Position::Finished => DOWN,
+            _ => EMPTY
+        };
+        let r2s = match self.red_pieces[2] {
+            Position::Outward(0) => UP,
+            Position::Finished => DOWN,
+            _ => EMPTY
+        };
+
+        let board = self;
+        let get_square = |yellow_index: usize, red_index: usize| -> &'static str {
+            match (board.red_pieces[red_index], board.yellow_pieces[yellow_index]) {
+                (Position::Outward(n), _) if n == yellow_index as u8 + 1 => UP,
+                (Position::Homeward(n), _) if n == (BOARD_SIZE - yellow_index) as u8 => DOWN,
+                (_, Position::Outward(n)) if n == red_index as u8 + 1 => RIGHT,
+                (_, Position::Homeward(n)) if n == (BOARD_SIZE - red_index) as u8 => LEFT,
+                _ => EMPTY
+            }
+        };
+
+        let y0t = if self.yellow_pieces[0] == Position::Homeward(0) { LEFT } else { EMPTY };
+        let y1t = if self.yellow_pieces[1] == Position::Homeward(0) { LEFT } else { EMPTY };
+        let y2t = if self.yellow_pieces[2] == Position::Homeward(0) { LEFT } else { EMPTY };
+
+        return [
+            format!("              .   :   .  next-> {}", if self.turn == Turn::Red { "Red" } else { "Yellow" }),
+            format!("        +---+---+---+---+---+"),
+            format!("        |===|{0}|{1}|{2}|===|", r0t, r1t, r2t),
+            format!("        +---+---+---+---+---+"),
+            format!("    . 2 |{0}|{1}|{2}|{3}|{4}| :", y2s, get_square(2, 0), get_square(2, 1), get_square(2, 2), y2t),
+            format!("        +---+---+---+---+---+"),
+            format!("    : 1 |{0}|{1}|{2}|{3}|{4}| .", y1s, get_square(1, 0), get_square(1, 1), get_square(1, 2), y1t),
+            format!("        +---+---+---+---+---+"),
+            format!("    . 0 |{0}|{1}|{2}|{3}|{4}| :", y0s, get_square(0, 0), get_square(0, 1), get_square(0, 2), y0t),
+            format!("        +---+---+---+---+---+"),
+            format!("        |===|{0}|{1}|{2}|===|", r0s, r1s, r2s),
+            format!("        +---+---+---+---+---+"),
+            format!("Yellow /      0   1   2"),
+            format!("      / Red   :   .   :"),
+        ].join("\n");
+    }
 }
 
 impl Board3 {
@@ -163,7 +253,7 @@ mod tests {
 
     mod move_at {
         use super::super::Board3;
-        use crate::game::commons::{Turn, Board, Position};
+        use super::super::super::super::game::commons::{Turn, Board, Position};
 
         #[test]
         fn move_r0o0() {
@@ -384,6 +474,144 @@ mod tests {
             assert_eq!(board.yellow_pieces[0], Position::Outward(0));
             assert_eq!(board.yellow_pieces[1], Position::Outward(0));
             assert_eq!(board.yellow_pieces[2], Position::Outward(0));
+        }
+    }
+
+    mod draw_ascii_art {
+        use super::super::Board3;
+        use super::super::super::commons::{Turn, Board, Position};
+
+        #[test]
+        fn initial_board() {
+            let board = Board3::new(Turn::Red);
+
+            assert_eq!(board.draw_ascii_art(), [
+                "              .   :   .  next-> Red",
+                "        +---+---+---+---+---+",
+                "        |===|   |   |   |===|",
+                "        +---+---+---+---+---+",
+                "    . 2 | > |   |   |   |   | :",
+                "        +---+---+---+---+---+",
+                "    : 1 | > |   |   |   |   | .",
+                "        +---+---+---+---+---+",
+                "    . 0 | > |   |   |   |   | :",
+                "        +---+---+---+---+---+",
+                "        |===| ^ | ^ | ^ |===|",
+                "        +---+---+---+---+---+",
+                "Yellow /      0   1   2",
+                "      / Red   :   .   :"].join("\n"));
+        }
+
+        #[test]
+        fn all_in_turning_point() {
+            let mut board = Board3::new(Turn::Yellow);
+
+            board.red_pieces[0] = Position::Homeward(0);
+            board.red_pieces[1] = Position::Homeward(0);
+            board.red_pieces[2] = Position::Homeward(0);
+            board.yellow_pieces[0] = Position::Homeward(0);
+            board.yellow_pieces[1] = Position::Homeward(0);
+            board.yellow_pieces[2] = Position::Homeward(0);
+
+            assert_eq!(board.draw_ascii_art(), [
+                "              .   :   .  next-> Yellow",
+                "        +---+---+---+---+---+",
+                "        |===| v | v | v |===|",
+                "        +---+---+---+---+---+",
+                "    . 2 |   |   |   |   | < | :",
+                "        +---+---+---+---+---+",
+                "    : 1 |   |   |   |   | < | .",
+                "        +---+---+---+---+---+",
+                "    . 0 |   |   |   |   | < | :",
+                "        +---+---+---+---+---+",
+                "        |===|   |   |   |===|",
+                "        +---+---+---+---+---+",
+                "Yellow /      0   1   2",
+                "      / Red   :   .   :"].join("\n"));
+        }
+
+        #[test]
+        fn all_in_finish_point() {
+            let mut board = Board3::new(Turn::Red);
+
+            board.red_pieces[0] = Position::Finished;
+            board.red_pieces[1] = Position::Finished;
+            board.red_pieces[2] = Position::Finished;
+            board.yellow_pieces[0] = Position::Finished;
+            board.yellow_pieces[1] = Position::Finished;
+            board.yellow_pieces[2] = Position::Finished;
+
+            assert_eq!(board.draw_ascii_art(), [
+                "              .   :   .  next-> Red",
+                "        +---+---+---+---+---+",
+                "        |===|   |   |   |===|",
+                "        +---+---+---+---+---+",
+                "    . 2 | < |   |   |   |   | :",
+                "        +---+---+---+---+---+",
+                "    : 1 | < |   |   |   |   | .",
+                "        +---+---+---+---+---+",
+                "    . 0 | < |   |   |   |   | :",
+                "        +---+---+---+---+---+",
+                "        |===| v | v | v |===|",
+                "        +---+---+---+---+---+",
+                "Yellow /      0   1   2",
+                "      / Red   :   .   :"].join("\n"));
+        }
+
+        #[test]
+        fn vortex() {
+            let mut board = Board3::new(Turn::Red);
+
+            board.red_pieces[0] = Position::Outward(2);
+            board.red_pieces[1] = Position::Outward(0);
+            board.red_pieces[2] = Position::Homeward(2);
+            board.yellow_pieces[0] = Position::Homeward(2);
+            board.yellow_pieces[1] = Position::Outward(0);
+            board.yellow_pieces[2] = Position::Outward(2);
+
+            assert_eq!(board.draw_ascii_art(), [
+                "              .   :   .  next-> Red",
+                "        +---+---+---+---+---+",
+                "        |===|   |   |   |===|",
+                "        +---+---+---+---+---+",
+                "    . 2 |   |   | > |   |   | :",
+                "        +---+---+---+---+---+",
+                "    : 1 | > | ^ |   | v |   | .",
+                "        +---+---+---+---+---+",
+                "    . 0 |   |   | < |   |   | :",
+                "        +---+---+---+---+---+",
+                "        |===|   | ^ |   |===|",
+                "        +---+---+---+---+---+",
+                "Yellow /      0   1   2",
+                "      / Red   :   .   :"].join("\n"));
+        }
+
+        #[test]
+        fn saw() {
+            let mut board = Board3::new(Turn::Red);
+
+            board.red_pieces[0] = Position::Homeward(1);
+            board.red_pieces[1] = Position::Homeward(3);
+            board.red_pieces[2] = Position::Homeward(2);
+            board.yellow_pieces[0] = Position::Homeward(1);
+            board.yellow_pieces[1] = Position::Homeward(3);
+            board.yellow_pieces[2] = Position::Homeward(2);
+
+            assert_eq!(board.draw_ascii_art(), [
+                "              .   :   .  next-> Red",
+                "        +---+---+---+---+---+",
+                "        |===|   |   |   |===|",
+                "        +---+---+---+---+---+",
+                "    . 2 |   | v | < |   |   | :",
+                "        +---+---+---+---+---+",
+                "    : 1 |   | < |   | v |   | .",
+                "        +---+---+---+---+---+",
+                "    . 0 |   |   | v | < |   | :",
+                "        +---+---+---+---+---+",
+                "        |===|   |   |   |===|",
+                "        +---+---+---+---+---+",
+                "Yellow /      0   1   2",
+                "      / Red   :   .   :"].join("\n"));
         }
     }
 }

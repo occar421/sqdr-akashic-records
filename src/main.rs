@@ -15,5 +15,4 @@ fn main() {
     println!("3x3 Yellow first -> {}", result);
 
     // TODO: Dump tree as json or something
-    // TODO: Show in ascii-art of the board
 }
