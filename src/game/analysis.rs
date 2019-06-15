@@ -4,13 +4,13 @@ use std::collections::{HashMap, HashSet};
 use crate::game::commons::{GameResult, Code, Board, Turn};
 
 #[derive(Debug)]
-pub struct AnalysisTree {
+pub struct AnalysisTreeNode {
     game_result: GameResult,
     next_boards: Rc<RefCell<Vec<Code>>>,
 }
 
 pub struct Analyzer {
-    map: RefCell<HashMap<Code, AnalysisTree>>,
+    map: RefCell<HashMap<Code, AnalysisTreeNode>>,
     checked_set: RefCell<HashSet<Code>>,
 }
 
@@ -44,7 +44,7 @@ impl Analyzer {
         let code = current_board.encode();
         let next_boards = Rc::new(RefCell::new(Vec::new()));
 
-        self.map.borrow_mut().insert(code.clone(), AnalysisTree { game_result: GameResult::Unknown, next_boards: next_boards.clone() });
+        self.map.borrow_mut().insert(code.clone(), AnalysisTreeNode { game_result: GameResult::Unknown, next_boards: next_boards.clone() });
 
         for i in 0..B::get_board_size() {
             let child_code = self._search(current_board, i);
@@ -70,7 +70,7 @@ impl Analyzer {
 
                 let next_boards = Rc::new(RefCell::new(Vec::new()));
 
-                map.insert(board.encode(), AnalysisTree { game_result: result, next_boards: next_boards.clone() });
+                map.insert(board.encode(), AnalysisTreeNode { game_result: result, next_boards: next_boards.clone() });
             }
 
             if result != GameResult::Unknown {
@@ -88,8 +88,8 @@ impl Analyzer {
             }
 
             let mut map = self.map.borrow_mut();
-            let relation = map.get_mut(&code).unwrap(); // pick already inserted value
-            relation.next_boards.borrow_mut().extend_from_slice(&codes);
+            let tree_node = map.get_mut(&code).unwrap(); // pick already inserted value
+            tree_node.next_boards.borrow_mut().extend_from_slice(&codes);
 
             return Option::Some(code);
         } else {
@@ -110,14 +110,14 @@ impl Analyzer {
         // check if already memoized in map
         {
             let map = self.map.borrow();
-            let relation = map.get(board_code);
+            let tree_node = map.get(board_code);
 
-            if let Some(relation) = relation {
-                if relation.game_result != GameResult::Unknown {
-                    return relation.game_result;
+            if let Some(tree_node) = tree_node {
+                if tree_node.game_result != GameResult::Unknown {
+                    return tree_node.game_result;
                 }
 
-                next_boards = { relation.next_boards.borrow().clone() };
+                next_boards = { tree_node.next_boards.borrow().clone() };
             } else {
                 return GameResult::Unknown;
             }
