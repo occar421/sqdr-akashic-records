@@ -2,6 +2,7 @@ use std::cell::RefCell;
 use std::rc::Rc;
 use std::collections::{HashMap, HashSet};
 use crate::game::commons::{GameResult, Code, Board, Turn};
+use std::marker::PhantomData;
 
 #[derive(Debug)]
 pub struct AnalysisTreeNode {
@@ -9,20 +10,22 @@ pub struct AnalysisTreeNode {
     next_boards: Rc<RefCell<Vec<Code>>>,
 }
 
-pub struct Analyzer {
+pub struct Analyzer<B: Board> {
     map: RefCell<HashMap<Code, AnalysisTreeNode>>,
     checked_set: RefCell<HashSet<Code>>,
+    _marker: PhantomData<fn() -> B>,
 }
 
-impl Analyzer {
-    pub fn new() -> Analyzer {
+impl<B> Analyzer<B> where B: Board {
+    pub fn new() -> Analyzer<B> {
         Analyzer {
             map: RefCell::new(HashMap::new()),
             checked_set: RefCell::new(HashSet::new()),
+            _marker: PhantomData,
         }
     }
 
-    pub fn analyze<B>(self: &Self, board: &B) -> GameResult where B: Board {
+    pub fn analyze(self: &Self, board: &B) -> GameResult {
         println!("Start searching leaves.");
 
         let first_board_code = board.encode();
@@ -33,14 +36,14 @@ impl Analyzer {
 
         println!("Start solving.");
 
-        let result = self.solve::<B>(&first_board_code);
+        let result = self.solve(&first_board_code);
 
         println!("Finish solving.");
 
         return result;
     }
 
-    fn search<B>(self: &Self, current_board: &B) where B: Board {
+    fn search(self: &Self, current_board: &B) {
         let code = current_board.encode();
         let next_boards = Rc::new(RefCell::new(Vec::new()));
 
@@ -54,7 +57,7 @@ impl Analyzer {
         }
     }
 
-    fn _search<B>(self: &Self, current_board: &B, piece_index: usize) -> Option<Code> where B: Board {
+    fn _search(self: &Self, current_board: &B, piece_index: usize) -> Option<Code> {
         let next = current_board.move_at(piece_index);
 
         if let Some(board) = next {
@@ -97,7 +100,7 @@ impl Analyzer {
         };
     }
 
-    fn solve<B>(self: &Self, board_code: &Code) -> GameResult where B: Board {
+    fn solve(self: &Self, board_code: &Code) -> GameResult {
         let mut next_boards;
         // check if already memoized in map
         {
@@ -126,7 +129,7 @@ impl Analyzer {
         }
 
         // calc
-        let mut results = next_boards.iter().map(|b| self.solve::<B>(b));
+        let mut results = next_boards.iter().map(|b| self.solve(b));
         let current_turn = board_code.get_turn::<B>();
 
         let (win_turn, win_opposite) = if current_turn == Turn::Red { (GameResult::RedWins, GameResult::YellowWins) } else { (GameResult::YellowWins, GameResult::RedWins) };
