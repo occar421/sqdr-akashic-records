@@ -99,14 +99,6 @@ impl Analyzer {
 
     fn solve<B>(self: &Self, board_code: &Code) -> GameResult where B: Board {
         let mut next_boards;
-
-        {
-            if self.checked_set.borrow().contains(board_code) {
-                // cyclic part
-                return GameResult::Drawn;
-            }
-        }
-
         // check if already memoized in map
         {
             let map = self.map.borrow();
@@ -115,6 +107,12 @@ impl Analyzer {
             if let Some(tree_node) = tree_node {
                 if tree_node.game_result != GameResult::Unknown {
                     return tree_node.game_result;
+                }
+                // game_result is Unknown
+
+                if self.checked_set.borrow().contains(board_code) {
+                    // cyclic part
+                    return GameResult::Drawn;
                 }
 
                 next_boards = { tree_node.next_boards.borrow().clone() };
@@ -131,23 +129,15 @@ impl Analyzer {
         let mut results = next_boards.iter().map(|b| self.solve::<B>(b));
         let current_turn = board_code.get_turn::<B>();
 
-        let result = if current_turn == Turn::Red {
-            if results.any(|r| r == GameResult::RedWins) {
-                GameResult::RedWins
+        let (win_turn, win_opposite) = if current_turn == Turn::Red { (GameResult::RedWins, GameResult::YellowWins) } else { (GameResult::YellowWins, GameResult::RedWins) };
+        let result =
+            if results.any(|r| r == win_turn) {
+                win_turn
             } else if results.any(|r| r == GameResult::Drawn) {
                 GameResult::Drawn
             } else {
-                GameResult::YellowWins
-            }
-        } else {
-            if results.any(|r| r == GameResult::YellowWins) {
-                GameResult::YellowWins
-            } else if results.any(|r| r == GameResult::Drawn) {
-                GameResult::Drawn
-            } else {
-                GameResult::RedWins
-            }
-        };
+                win_opposite
+            };
 
         // memoization
         self.map.borrow_mut().get_mut(board_code).unwrap().game_result = result; // pick already inserted value
