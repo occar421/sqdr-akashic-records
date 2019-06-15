@@ -3,11 +3,42 @@ use std::rc::Rc;
 use std::collections::{HashMap, HashSet};
 use crate::game::commons::{GameResult, Code, Board, Turn};
 use std::marker::PhantomData;
+use serde::ser::{Serialize, Serializer, SerializeStruct};
 
 #[derive(Debug)]
 pub struct AnalysisTreeNode {
     game_result: GameResult,
     next_boards: Rc<RefCell<Vec<Code>>>,
+}
+
+impl Serialize for AnalysisTreeNode {
+    fn serialize<S>(&self, serializer: S) -> Result<<S as Serializer>::Ok, <S as Serializer>::Error> where
+        S: Serializer {
+        let mut state = serializer.serialize_struct("AnalysisTreeNode", 2)?;
+        state.serialize_field("result", &self.game_result)?;
+        state.serialize_field("next", &self.next_boards.borrow().to_vec())?;
+        state.end()
+    }
+}
+
+impl Serialize for GameResult {
+    fn serialize<S>(&self, serializer: S) -> Result<<S as Serializer>::Ok, <S as Serializer>::Error> where
+        S: Serializer {
+        serializer.serialize_str(match self {
+            GameResult::Unknown => "unknown",
+            GameResult::RedWins => "red",
+            GameResult::YellowWins => "yellow",
+            GameResult::Drawn => "drawn",
+            GameResult::Invalid => "invalid"
+        })
+    }
+}
+
+impl Serialize for Code {
+    fn serialize<S>(&self, serializer: S) -> Result<<S as Serializer>::Ok, <S as Serializer>::Error> where
+        S: Serializer {
+        serializer.serialize_str(&self.0)
+    }
 }
 
 pub struct Analyzer<B: Board> {
@@ -146,5 +177,9 @@ impl<B> Analyzer<B> where B: Board {
         self.map.borrow_mut().get_mut(board_code).unwrap().game_result = result; // pick already inserted value
 
         return result;
+    }
+
+    pub fn emit_map_as_json(self: &Self) -> serde_json::Result<String> {
+        serde_json::to_string(&self.map)
     }
 }
