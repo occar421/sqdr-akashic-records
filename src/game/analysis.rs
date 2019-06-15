@@ -24,13 +24,19 @@ impl Serialize for AnalysisTreeNode {
 impl Serialize for GameResult {
     fn serialize<S>(&self, serializer: S) -> Result<<S as Serializer>::Ok, <S as Serializer>::Error> where
         S: Serializer {
-        serializer.serialize_str(match self {
+        serializer.serialize_str(self.to_string())
+    }
+}
+
+impl GameResult {
+    fn to_string(self: &Self) -> &str {
+        match self {
             GameResult::Unknown => "unknown",
             GameResult::RedWins => "red",
             GameResult::YellowWins => "yellow",
             GameResult::Drawn => "drawn",
             GameResult::Invalid => "invalid"
-        })
+        }
     }
 }
 
@@ -181,5 +187,19 @@ impl<B> Analyzer<B> where B: Board {
 
     pub fn emit_map_as_json(self: &Self) -> serde_json::Result<String> {
         serde_json::to_string(&self.map)
+    }
+
+    pub fn emit_nodes_and_links(self: &Self) -> (Vec<(String, String)>, Vec<(String, String)>) {
+        let mut nodes = Vec::new();
+        let mut links = Vec::new();
+
+        for (k, v) in self.map.borrow().iter() {
+            nodes.push((k.0.clone(), v.game_result.to_string().to_string()));
+            for n in v.next_boards.borrow().iter() {
+                links.push((k.0.clone(), n.0.clone()));
+            }
+        }
+
+        return (nodes, links);
     }
 }
