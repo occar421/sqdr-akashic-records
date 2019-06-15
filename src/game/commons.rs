@@ -40,6 +40,7 @@ pub enum GameResult {
     Drawn,
     Invalid,
 }
+// TODO RedWins+Drawn or Drawn+YellowWins
 
 impl std::fmt::Display for GameResult {
     fn fmt(self: &Self, f: &mut std::fmt::Formatter) -> std::fmt::Result {

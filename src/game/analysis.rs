@@ -141,8 +141,8 @@ impl<B> Analyzer<B> where B: Board {
         let mut next_boards;
         // check if already memoized in map
         {
-            let map = self.map.borrow();
-            let tree_node = map.get(board_code);
+            let mut map = self.map.borrow_mut();
+            let tree_node = map.get_mut(board_code);
 
             if let Some(tree_node) = tree_node {
                 if tree_node.game_result != GameResult::Unknown {
@@ -152,7 +152,9 @@ impl<B> Analyzer<B> where B: Board {
 
                 if self.checked_set.borrow().contains(board_code) {
                     // cyclic part
-                    return GameResult::Drawn;
+                    let result = GameResult::Drawn;
+                    tree_node.game_result = result;
+                    return result;
                 }
 
                 next_boards = { tree_node.next_boards.borrow().clone() };
@@ -166,14 +168,14 @@ impl<B> Analyzer<B> where B: Board {
         }
 
         // calc
-        let mut results = next_boards.iter().map(|b| self.solve(b));
+        let results: Vec<_> = next_boards.iter().map(|b| self.solve(b)).collect(); // because side effect function
         let current_turn = board_code.get_turn::<B>();
 
         let (win_turn, win_opposite) = if current_turn == Turn::Red { (GameResult::RedWins, GameResult::YellowWins) } else { (GameResult::YellowWins, GameResult::RedWins) };
         let result =
-            if results.any(|r| r == win_turn) {
+            if results.iter().any(|r| *r == win_turn) {
                 win_turn
-            } else if results.any(|r| r == GameResult::Drawn) {
+            } else if results.iter().any(|r| *r == GameResult::Drawn) {
                 GameResult::Drawn
             } else {
                 win_opposite
