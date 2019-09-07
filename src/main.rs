@@ -3,7 +3,6 @@ mod game;
 use crate::game::board3::Board3;
 use crate::game::analysis::Analyzer;
 use crate::game::commons::Turn;
-//use std::path::Path;
 use std::fs::File;
 use std::io::{LineWriter, Write};
 use std::path::Path;
@@ -18,10 +17,16 @@ fn main() {
     let result = analyzer.analyze(&board); // reuse "cache"
     println!("3x3 Yellow first -> {}", result);
 
+    println!("Start writing to json file.");
+
     let json_content = analyzer.emit_map_as_json().expect("Invalid structure.");
     let path = Path::new("./results/board3.json");
 
     std::fs::write(path, json_content).expect("Failed to write file.");
+
+    println!("Wrote.");
+
+    println!("Start writing to csv files.");
 
     let dump = analyzer.emit_nodes_and_links();
     let path = File::create("./results/nodes3.csv").expect("Failed to create nodes file.");
@@ -42,5 +47,5 @@ fn main() {
 
     file.flush().expect("Failed to flush links file");
 
-    println!("Finish writing to json file.");
+    println!("Wrote.");
 }

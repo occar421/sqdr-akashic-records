@@ -24,18 +24,18 @@ impl Serialize for AnalysisTreeNode {
 impl Serialize for GameResult {
     fn serialize<S>(&self, serializer: S) -> Result<<S as Serializer>::Ok, <S as Serializer>::Error> where
         S: Serializer {
-        serializer.serialize_str(self.to_string())
+        serializer.serialize_str(self.get_string())
     }
 }
 
 impl GameResult {
-    fn to_string(self: &Self) -> &str {
+    fn get_string(self: &Self) -> &str {
         match self {
             GameResult::Unknown => "unknown",
             GameResult::RedWins => "red",
             GameResult::YellowWins => "yellow",
-            GameResult::Drawn => "drawn",
-            GameResult::Invalid => "invalid"
+            GameResult::Undeterminable => "undeterminable",
+            GameResult::Invalid => "invalid",
         }
     }
 }
@@ -152,7 +152,7 @@ impl<B> Analyzer<B> where B: Board {
 
                 if self.checked_set.borrow().contains(board_code) {
                     // cyclic part
-                    let result = GameResult::Drawn;
+                    let result = GameResult::Undeterminable;
                     tree_node.game_result = result;
                     return result;
                 }
@@ -175,10 +175,12 @@ impl<B> Analyzer<B> where B: Board {
         let result =
             if results.iter().any(|r| *r == win_turn) {
                 win_turn
-            } else if results.iter().any(|r| *r == GameResult::Drawn) {
-                GameResult::Drawn
-            } else {
+            } else if results.iter().any(|r| *r == GameResult::Undeterminable) {
+                GameResult::Undeterminable
+            } else if results.iter().all(|r| *r == win_opposite) {
                 win_opposite
+            } else {
+                GameResult::Invalid
             };
 
         // memoization
@@ -196,12 +198,194 @@ impl<B> Analyzer<B> where B: Board {
         let mut links = Vec::new();
 
         for (k, v) in self.map.borrow().iter() {
-            nodes.push((k.0.clone(), v.game_result.to_string().to_string()));
+            nodes.push((k.0.clone(), v.game_result.get_string().to_string()));
             for n in v.next_boards.borrow().iter() {
                 links.push((k.0.clone(), n.0.clone()));
             }
         }
 
         return (nodes, links);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    mod solve {
+        use super::super::{Analyzer, AnalysisTreeNode};
+        use crate::game::commons::{Code, GameResult, Turn, Board};
+        use std::cell::RefCell;
+        use std::rc::Rc;
+
+        #[derive(Debug, Copy, Clone)]
+        struct TestBoard {}
+
+        impl Board for TestBoard {
+            fn get_board_size() -> usize {
+                unimplemented!()
+            }
+
+            fn move_at(&self, piece_index: usize) -> Option<Self> {
+                unimplemented!()
+            }
+
+            fn encode(&self) -> Code {
+                unimplemented!()
+            }
+
+            fn get_turn_from_code(code: &Code) -> Turn {
+                if let Some(t) = code.0.chars().nth(0) {
+                    match t {
+                        'R' => Turn::Red,
+                        'Y' => Turn::Yellow,
+                        _ => panic!("invalid")
+                    }
+                } else {
+                    panic!("invalid length");
+                }
+            }
+
+            fn get_result(&self) -> GameResult {
+                unimplemented!()
+            }
+
+            fn draw_ascii_art(&self) -> String {
+                unimplemented!()
+            }
+        }
+
+        macro_rules! generate_analyzer_with_game_network_map {
+            ($({$code:expr => $win:ident $(, [$($next_code:expr),+])?}),* $(,)?) => {
+                {
+                    let analyzer = Analyzer::<TestBoard>::new();
+                    {
+                        use crate::game::commons::GameResult::*;
+                        let mut map = analyzer.map.borrow_mut();
+                        $(
+                            map.insert(Code($code.to_string()), AnalysisTreeNode {
+                                game_result: $win,
+                                next_boards: Rc::new(RefCell::new(vec![
+                                    $($(Code($next_code.to_string())),*)?
+                                ])),
+                            });
+                        )*
+                    }
+                    analyzer
+                }
+            };
+        }
+
+        #[test]
+        fn only_1_move() {
+            let analyzer = generate_analyzer_with_game_network_map!(
+                { "R:1" => RedWins },
+            );
+
+            let result = analyzer.solve(&Code("R:1".to_string()));
+
+            assert_eq!(result, GameResult::RedWins)
+        }
+
+        #[test]
+        fn choose_3_moves_some_can_win() {
+            let analyzer = generate_analyzer_with_game_network_map!(
+                { "R:i" => Unknown, ["Y:f1", "Y:f2", "Y:f3"] },
+                { "Y:f1" => RedWins },
+                { "Y:f2" => YellowWins },
+                { "Y:f3" => Undeterminable },
+            );
+
+            let result = analyzer.solve(&Code("R:i".to_string()));
+
+            assert_eq!(result, GameResult::RedWins)
+        }
+
+        #[test]
+        fn choose_2_moves_anyway_lose() {
+            let analyzer = generate_analyzer_with_game_network_map!(
+                { "R:i" => Unknown, ["Y:f1", "Y:f2"] },
+                { "Y:f1" => YellowWins },
+                { "Y:f2" => YellowWins },
+            );
+
+            let result = analyzer.solve(&Code("R:i".to_string()));
+
+            assert_eq!(result, GameResult::YellowWins)
+        }
+
+        #[test]
+        fn choose_2_moves_some_can_drawn() {
+            let analyzer = generate_analyzer_with_game_network_map!(
+                { "R:i" => Unknown, ["Y:f1", "Y:f2"] },
+                { "Y:f1" => YellowWins },
+                { "Y:f2" => Undeterminable },
+            );
+
+            let result = analyzer.solve(&Code("R:i".to_string()));
+
+            assert_eq!(result, GameResult::Undeterminable)
+        }
+
+        #[test]
+        fn loop_with_all_undeterminable() {
+            let analyzer = generate_analyzer_with_game_network_map!(
+                { "Y:!" => Unknown, ["R:a"] },
+                { "R:a" => Unknown, ["Y:b"] },
+                { "Y:b" => Unknown, ["R:c"] },
+                { "R:c" => Unknown, ["Y:d"] },
+                { "Y:d" => Unknown, ["R:a"] },
+            );
+
+            let result = analyzer.solve(&Code("Y:!".to_string()));
+
+            assert_eq!(result, GameResult::Undeterminable)
+        }
+
+        #[test]
+        fn loop_with_red_wins() {
+            let analyzer = generate_analyzer_with_game_network_map!(
+                { "Y:!" => Unknown, ["R:a"] },
+                { "R:a" => Unknown, ["Y:b"] },
+                { "Y:b" => Unknown, ["R:c"] },
+                { "R:c" => Unknown, ["Y:d", "Y:d'"] },
+                { "Y:d" => Unknown, ["R:a"] },
+                { "Y:d'" => RedWins },
+            );
+
+            let result = analyzer.solve(&Code("Y:!".to_string()));
+
+            assert_eq!(result, GameResult::RedWins)
+        }
+
+        #[test]
+        fn loop_with_undeterminable_though_yellow_could_win() {
+            let analyzer = generate_analyzer_with_game_network_map!(
+                { "Y:!" => Unknown, ["R:a"] },
+                { "R:a" => Unknown, ["Y:b"] },
+                { "Y:b" => Unknown, ["R:c"] },
+                { "R:c" => Unknown, ["Y:d", "Y:d'"] },
+                { "Y:d" => Unknown, ["R:a"] },
+                { "Y:d'" => YellowWins },
+            );
+
+            let result = analyzer.solve(&Code("Y:!".to_string()));
+
+            assert_eq!(result, GameResult::Undeterminable)
+        }
+
+        #[test]
+        fn loop_with_yellow_wins_because_of_outside_of_the_loop() {
+            let analyzer = generate_analyzer_with_game_network_map!(
+                { "Y:!" => Unknown, ["R:a", "R:a'"] },
+                { "R:a" => Unknown, ["Y:b"] },
+                { "R:a'" => YellowWins },
+                { "Y:b" => Unknown, ["R:c"] },
+                { "R:c" => Unknown, ["Y:d"] },
+                { "Y:d" => Unknown, ["R:a"] },
+            );
+
+            let result = analyzer.solve(&Code("Y:!".to_string()));
+
+            assert_eq!(result, GameResult::YellowWins)
+        }
     }
 }

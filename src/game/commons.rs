@@ -3,15 +3,15 @@ use std::fmt::Debug;
 pub trait Board where Self: Sized + Clone + Debug {
     fn get_board_size() -> usize;
 
-    fn move_at(self: &Self, piece_index: usize) -> Option<Self>;
+    fn move_at(&self, piece_index: usize) -> Option<Self>;
 
-    fn encode(self: &Self) -> Code;
+    fn encode(&self) -> Code;
 
     fn get_turn_from_code(code: &Code) -> Turn;
 
-    fn get_result(self: &Self) -> GameResult;
+    fn get_result(&self) -> GameResult;
 
-    fn draw_ascii_art(self: &Self) -> String;
+    fn draw_ascii_art(&self) -> String;
 }
 
 // battle field, Outward(1..BOARD_SIZE) && Homeward(1..BOARD_SIZE)
@@ -37,10 +37,9 @@ pub enum GameResult {
     Unknown,
     RedWins,
     YellowWins,
-    Drawn,
+    Undeterminable,
     Invalid,
 }
-// TODO RedWins+Drawn or Drawn+YellowWins
 
 impl std::fmt::Display for GameResult {
     fn fmt(self: &Self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
